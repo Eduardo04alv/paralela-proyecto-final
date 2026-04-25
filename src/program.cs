@@ -10,13 +10,6 @@ class Program
         int nucleosLogicos = Environment.ProcessorCount;
         Console.WriteLine($"Núcleos lógicos disponibles: {nucleosLogicos}");
 
-        Console.Write("¿Cuántos núcleos quieres usar? ");
-        if (!int.TryParse(Console.ReadLine(), out int z) || z <= 0 )
-        {
-            Console.WriteLine("Valor inválido.");
-            return;
-        }
-
         Grafo grafo = new Grafo();
 
         Console.Write("¿Cuántos nodos quieres? ");
@@ -33,83 +26,64 @@ class Program
             return;
         }
 
+        Console.WriteLine($"Generando grafo con {x} nodos...");
         grafo.GenerarGrafo(x, 2);
-        /*
-        foreach (var nodo in grafo.GetAll()) 
-        { 
-            Console.Write(nodo.Key + ": "); 
-            foreach (var vecino in nodo.Value) 
-            { 
-                Console.Write(vecino + " "); 
-            } 
-            Console.WriteLine(); 
-        }
-        */
+
         Stopwatch sw = new Stopwatch();
 
-        // BFS normal
         sw.Restart();
         var rutaBFS = grafo.BFS(1, y);
         sw.Stop();
         long BFSSecuencial = sw.ElapsedMilliseconds;
         Console.WriteLine($"BFS Secuencial: {BFSSecuencial} ms");
 
-        // DFS normal
-        /*
         sw.Restart();
-        var rutaDFS = grafo.DFS(1, y);
-        sw.Stop();
-        long DFSSecuencial = sw.ElapsedMilliseconds;
-        Console.WriteLine($"DFS Secuencial: {DFSSecuencial} ms");
-        */
-
-        // BFS paralelo
-        sw.Restart();
-        var rutaParalela = grafo.BFSParalelo(1, y, z);
+        var rutaParalela = grafo.BFSParalelo(1, y, nucleosLogicos);
         sw.Stop();
         long BFSparalelo = sw.ElapsedMilliseconds;
-        Console.WriteLine($"BFS Paralelo: {BFSparalelo} ms");
+        Console.WriteLine($"BFS Paralelo ({nucleosLogicos} núcleos): {BFSparalelo} ms");
 
-        // DFS paralelo
-        /*
-        sw.Restart();
-        var rutaDFSParalelo = grafo.DFSParalelo(1, y, z);
-        sw.Stop();
-        long DFSparalelo = sw.ElapsedMilliseconds;
-        Console.WriteLine($"DFS Paralelo: {DFSparalelo} ms");
-        */
-
-        // Mostrar resultados
-        Console.WriteLine("Resultado BFS Secuencial:");
+        Console.WriteLine("\nResultado BFS Secuencial:");
         MostrarRuta(rutaBFS);
 
-       // Console.WriteLine("Resultado DFS Secuencial:");
-       // MostrarRuta(rutaDFS);
-
-        Console.WriteLine("Resultado BFS Paralelo:");
+        Console.WriteLine("\nResultado BFS Paralelo:");
         MostrarRuta(rutaParalela);
 
-        // Console.WriteLine("Resultado DFS Paralelo:");
-        //MostrarRuta(rutaDFSParalelo);
+        double speedupBase = BFSparalelo > 0 ? (double)BFSSecuencial / BFSparalelo : 0;
+        double eficienciaBase = nucleosLogicos > 0 ? speedupBase / nucleosLogicos : 0;
 
-        // metricas 
-        double speedup = (double)BFSSecuencial / BFSparalelo;
-        double eficiencia = speedup / z;
+        Console.WriteLine($"\n--- MÉTRICAS BFS (máximo paralelismo) ---");
+        Console.WriteLine($"Speedup: {speedupBase:F2}");
+        Console.WriteLine($"Eficiencia: {eficienciaBase:F2}");
 
-        Console.WriteLine($"\n--- MÉTRICAS BFS ---");
-        Console.WriteLine($"Speedup: {speedup:F2}");
-        Console.WriteLine($"Eficiencia: {eficiencia:F2}");
+        Console.WriteLine("\n=============================");
+        Console.WriteLine("PRUEBAS DE ESCALABILIDAD BFS");
+        Console.WriteLine("=============================");
 
-        /*
-        double speedup2 = (double)DFSSecuencial / DFSparalelo;
-        double eficiencia2 = speedup2 / z;
+        int[] nucleosPrueba = { 1, 2, 4, 8 };
 
-        Console.WriteLine($"\n--- MÉTRICAS DFS ---");
-        Console.WriteLine($"Speedup: {speedup2:F2}");
-        Console.WriteLine($"Eficiencia: {eficiencia2:F2}");
+        foreach (int n in nucleosPrueba)
+        {
+            if (n > nucleosLogicos) continue;
 
-        */
+            sw.Restart();
+            grafo.BFSParalelo(1, y, n);
+            sw.Stop();
+
+            long tiempo = sw.ElapsedMilliseconds;
+
+            double speedup = tiempo > 0 ? (double)BFSSecuencial / tiempo : 0;
+            double eficiencia = n > 0 ? speedup / n : 0;
+
+            Console.WriteLine($"\nNúcleos: {n}");
+            Console.WriteLine($"Tiempo: {tiempo} ms");
+            Console.WriteLine($"Speedup: {speedup:F2}");
+            Console.WriteLine($"Eficiencia: {eficiencia:F2}");
+        }
+
+        Console.WriteLine("\nFin de las pruebas.");
     }
+
     static void MostrarRuta(List<int> ruta)
     {
         if (ruta == null)
